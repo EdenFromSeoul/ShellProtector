@@ -5,6 +5,7 @@ using System.Text;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
+using Random = System.Random;
 
 namespace Shell.Protector
 {
@@ -13,6 +14,8 @@ namespace Shell.Protector
         private SerializedObject _serializedObject;
         private ShellProtector _root;
         private ShellProtectorTester _tester;
+
+        [SerializeField]
         private Animator _animator;
         private readonly LanguageManager _languageManager = LanguageManager.GetInstance();
         private ReorderableList _materialList;
@@ -20,14 +23,13 @@ namespace Shell.Protector
 
         private SerializedProperty _rounds;
         private SerializedProperty _filter;
-        private SerializedProperty _algorithm;
         private SerializedProperty _keySize;
         private SerializedProperty _keySizeIndex;
         private SerializedProperty _animationSpeed;
         private SerializedProperty _deleteFolders;
         private SerializedProperty _parameterMultiplexing;
 
-        bool option = false;
+        bool option;
 
         [SerializeField] private bool showPassword;
 
@@ -36,8 +38,8 @@ namespace Shell.Protector
 
         private readonly string[] _filters = { "Point", "Bilinear" };
         private readonly string[] _languages = { "English", "한국어" };
-        private readonly string[] _encryptionAlgorithms = { "XXTEA" };
         private readonly string[] _keySizes = new string[5];
+        private bool _needRefresh;
         private Vector2 _scrollPos;
 
         [MenuItem("Window/ShellProtector Helper")]
@@ -46,7 +48,9 @@ namespace Shell.Protector
             GetWindow<ShellProtectorHelper>("ShellProtector Helper");
         }
 
-        private string Lang(string key) => _languageManager == null ? "" : _languageManager.GetLang(_tester != null ? _tester.lang : _root != null ? _root.lang : "eng", key);
+        private string Lang(string key) => _languageManager == null
+            ? ""
+            : _languageManager.GetLang(_tester ? _tester.lang : _root ? _root.lang : "eng", key);
 
         private static string GenerateRandomString(int length)
         {
@@ -54,7 +58,7 @@ namespace Shell.Protector
                 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_-+=|\\/?.>,<~`\'\" ";
             var builder = new StringBuilder();
 
-            var random = new System.Random();
+            var random = new Random();
             for (var i = 0; i < length; i++)
             {
                 var index = random.Next(chars.Length);
@@ -66,26 +70,31 @@ namespace Shell.Protector
 
         private void OnGUI()
         {
+            // animator selector
+            // _animator = EditorGUILayout.ObjectField("Avatar", _animator, typeof(Animator), true) as Animator;
+            var newAnimator = EditorGUILayout.ObjectField("Avatar", _animator, typeof(Animator), true) as Animator;
+
+            if (newAnimator != _animator)
+            {
+                _animator = newAnimator;
+                _needRefresh = true;
+                _tester = null;
+                _root = null;
+            }
 
             if (_animator == null)
             {
-                _animator = FindObjectOfType<Animator>();
-
-                if (_animator == null)
-                {
-                    GUILayout.Label("Scene에 Animator가 없습니다. Animator가 있는 아바타를 Scene에 추가해주세요.");
-                    return;
-                }
+                return;
             }
 
             if (_tester == null)
             {
                 _tester = FindObjectOfType<ShellProtectorTester>();
-
             }
 
             if (_tester != null)
-            {            GUILayout.Space(10);
+            {
+                GUILayout.Space(10);
 
                 if (_tester.user_key_length == 0)
                 {
@@ -97,24 +106,29 @@ namespace Shell.Protector
                     if (GUILayout.Button(Lang("Check encryption success")))
                         _tester.CheckEncryption();
                 }
+
                 GUILayout.Label(Lang("Press it before uploading."));
                 if (GUILayout.Button(Lang("Done & Reset")))
                 {
                     _tester.ResetEncryption();
                     DestroyImmediate(_tester.GetComponent<ShellProtectorTester>());
                 }
+
                 return;
             }
 
+            // animator 안에서 ShellProtectorTester를 찾아보고 없으면 생성
             if (_root == null)
             {
-                if (!GUILayout.Button("Attach ShellProtector")) return;
-                _root = _animator.gameObject.AddComponent<ShellProtector>();
-                RefreshSerializedObject();
-                return;
+                _root = _animator.gameObject.GetComponent<ShellProtector>();
+                if (_root == null)
+                {
+                    _root = _animator.gameObject.AddComponent<ShellProtector>();
+                    RefreshSerializedObject();
+                }
             }
 
-            if (_serializedObject == null)
+            if (_serializedObject == null || _needRefresh)
             {
                 RefreshSerializedObject();
             }
@@ -202,6 +216,19 @@ namespace Shell.Protector
                 GUILayout.EndHorizontal();
             }
 
+            GUILayout.Label(Lang("Max password length"), EditorStyles.boldLabel);
+            _keySizeIndex.intValue = EditorGUILayout.Popup(_keySizeIndex.intValue, _keySizes, GUILayout.Width(150));
+
+            _keySize.intValue = _keySizeIndex.intValue switch
+            {
+                0 => 0,
+                1 => 4,
+                2 => 8,
+                3 => 12,
+                4 => 16,
+                _ => _keySize.intValue
+            };
+
             GUILayout.Space(20);
 
             option = EditorGUILayout.Foldout(option, Lang("Options"));
@@ -210,18 +237,6 @@ namespace Shell.Protector
                 GUILayout.Label(Lang("Texture filter"), EditorStyles.boldLabel);
                 _filter.intValue = EditorGUILayout.Popup(_filter.intValue, _filters, GUILayout.Width(100));
 
-                GUILayout.Label(Lang("Max password length"), EditorStyles.boldLabel);
-                _keySizeIndex.intValue = EditorGUILayout.Popup(_keySizeIndex.intValue, _keySizes, GUILayout.Width(150));
-
-                _keySize.intValue = _keySizeIndex.intValue switch
-                {
-                    0 => 0,
-                    1 => 4,
-                    2 => 8,
-                    3 => 12,
-                    4 => 16,
-                    _ => _keySize.intValue
-                };
 
                 GUILayout.Label(Lang("Initial animation speed"), EditorStyles.boldLabel);
                 GUILayout.BeginHorizontal();
@@ -296,7 +311,6 @@ namespace Shell.Protector
             };
             _rounds = _serializedObject.FindProperty("rounds");
             _filter = _serializedObject.FindProperty("filter");
-            _algorithm = _serializedObject.FindProperty("algorithm");
             _keySize = _serializedObject.FindProperty("key_size");
             _keySizeIndex = _serializedObject.FindProperty("key_size_idx");
             _animationSpeed = _serializedObject.FindProperty("animation_speed");

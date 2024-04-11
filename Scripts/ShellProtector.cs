@@ -37,7 +37,7 @@ namespace Shell.Protector
         [SerializeField] int filter = 1;
         [SerializeField] int algorithm = 0;
         [SerializeField] int key_size_idx = 0;
-        [SerializeField] int key_size = 4;
+        [SerializeField] int key_size = 0;
         [SerializeField] float animation_speed = 10.0f;
         [SerializeField] bool delete_folders = true;
         [SerializeField] bool parameter_multiplexing = false;
