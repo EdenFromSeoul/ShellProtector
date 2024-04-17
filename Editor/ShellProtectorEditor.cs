@@ -73,7 +73,8 @@ namespace Shell.Protector
 
             MonoScript monoScript = MonoScript.FromMonoBehaviour(root);
             string script_path = AssetDatabase.GetAssetPath(monoScript);
-            root.asset_dir = Path.GetDirectoryName(Path.GetDirectoryName(script_path));
+            // root.asset_dir = Path.GetDirectoryName(Path.GetDirectoryName(script_path));
+            root.asset_dir = "Assets/ShellProtectorTemp";
 
             material_list = new ReorderableList(serializedObject, serializedObject.FindProperty("material_list"), true, true, true, true);
             material_list.drawHeaderCallback = rect => EditorGUI.LabelField(rect, Lang("Material List"));

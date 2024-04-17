@@ -1,15 +1,13 @@
 ﻿#if UNITY_EDITOR
+
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-
 using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
-using VRC.SDK3.Avatars.ScriptableObjects;
 using VRC.SDK3.Avatars.Components;
-
+using VRC.SDK3.Avatars.ScriptableObjects;
 #if POIYOMI
 using Thry;
 #endif
@@ -146,7 +144,7 @@ namespace Shell.Protector
                 Debug.LogWarning(mat.name + ": The shader is already encrypted.");
                 return false;
             }
-            var av3 = gameObject.GetComponent<VRC.SDK3.Avatars.Components.VRCAvatarDescriptor>();
+            var av3 = gameObject.GetComponent<VRCAvatarDescriptor>();
             if (av3 == null)
             {
                 Debug.LogWarning(gameObject.name + ": can't find VRCAvatarDescriptor!");
@@ -162,6 +160,9 @@ namespace Shell.Protector
 
         public void CreateFolders()
         {
+            if (!AssetDatabase.IsValidFolder(asset_dir))
+                AssetDatabase.CreateFolder("Assets", asset_dir.Replace("Assets/", ""));
+
             if (!AssetDatabase.IsValidFolder(asset_dir + '/' + gameObject.name))
                 AssetDatabase.CreateFolder(asset_dir, gameObject.name);
             else
@@ -187,6 +188,7 @@ namespace Shell.Protector
         public void Encrypt()
         {
             gameObject.SetActive(true);
+            var rootDir = GetPackageDirectory();
             Debug.Log("Key bytes: " + string.Join(", ", GetKeyBytes()));
 
             GameObject avatar = DuplicateAvatar(gameObject);
@@ -225,7 +227,8 @@ namespace Shell.Protector
                 Debug.LogFormat("{0} : start encrypt...", mat.name);
 
                 Texture2D main_texture = (Texture2D)mat.mainTexture;
-                injector.Init(gameObject, main_texture, key_bytes, key_size, filter, asset_dir);
+                // injector.Init(gameObject, main_texture, key_bytes, key_size, filter, asset_dir);
+                injector.Init(gameObject, main_texture, key_bytes, key_size, filter, rootDir);
 
                 #region Generate mip_tex
                 int size = Math.Max(mat.mainTexture.width, mat.mainTexture.height);
@@ -387,7 +390,7 @@ namespace Shell.Protector
                 Shader encrypted_shader;
                 try
                 {
-                    encrypted_shader = injector.Inject(mat, Path.Combine(asset_dir, "Decrypt.cginc"), encrypted_shader_path, encrypted_tex[0], has_lim_texture, has_lim_texture2, has_outline_texture);
+                    encrypted_shader = injector.Inject(mat, Path.Combine(rootDir, "Decrypt.cginc"), encrypted_shader_path, encrypted_tex[0], has_lim_texture, has_lim_texture2, has_outline_texture);
                     if (encrypted_shader == null)
                     {
                         Debug.LogWarning("Injection failed");
@@ -505,7 +508,7 @@ namespace Shell.Protector
             EditorUtility.ClearProgressBar();
 
             ///////////////////////parameter////////////////////
-            var av3 = avatar.GetComponent<VRC.SDK3.Avatars.Components.VRCAvatarDescriptor>();
+            var av3 = avatar.GetComponent<VRCAvatarDescriptor>();
             av3.expressionParameters = ParameterManager.AddKeyParameter(av3.expressionParameters, key_size, parameter_multiplexing);
             AssetDatabase.CreateAsset(av3.expressionParameters, asset_dir + "/" + gameObject.name + "/" + av3.expressionParameters.name + ".asset");
 
@@ -516,7 +519,7 @@ namespace Shell.Protector
 
             GameObject[] mesh_array = new GameObject[meshes.Count];
             meshes.CopyTo(mesh_array);
-            AnimatorManager.DuplicateAniamtions(Path.Combine(asset_dir, "Animations"), animation_dir, mesh_array);
+            AnimatorManager.DuplicateAniamtions(Path.Combine(rootDir, "Animations"), animation_dir, mesh_array);
             AnimatorManager.AddKeyLayer(fx, animation_dir, key_size, animation_speed, parameter_multiplexing);
 
             AssetDatabase.SaveAssets();
@@ -540,6 +543,14 @@ namespace Shell.Protector
                 return null;
             return av3.expressionParameters;
         }
+
+        public string GetPackageDirectory()
+        {
+            var monoScript = MonoScript.FromMonoBehaviour(this);
+            var scriptPath = AssetDatabase.GetAssetPath(monoScript);
+            return Path.GetDirectoryName(scriptPath)?.Replace("Scripts", "");
+        }
+
     }
 }
 #endif
