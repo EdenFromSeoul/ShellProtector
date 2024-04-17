@@ -1,0 +1,12 @@
+{
+  "name": "shell-protector-helper",
+  "version": "1.1",
+  "displayName": "ShellProtector Helper",
+  "description": "ShellProtector Helper",
+  "unity": "2022.3",
+  "documentationUrl": "https://github.com/EdenFromSeoul/ShellProtector",
+  "licensesUrl": "https://github.com/EdenFromSeoul/ShellProtector/LICENSE",
+  "license": "MIT",
+  "keywords": ["shellprotector", "shell protector", "shell-protector", "shell protector helper", "shell-protector-helper"],
+  "url" : "https://github.com/EdenFromSeoul/ShellProtector/releases/download/HP1.1/ShellProtectorHelper1.1.unitypackage"
+}
